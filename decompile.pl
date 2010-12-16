@@ -5,9 +5,8 @@ use feature qw(say);
 use List::MoreUtils qw(indexes);
 use Data::Dumper;
 
-my $PCL    = 0x2;
-my $STATUS = 0x3;
-my $PCLATH = 0xa;
+my (%regmaps, %bitmaps);
+parseIncludeFile();
 
 my @lines = <>;
 
@@ -58,7 +57,7 @@ foreach my $line (@lines)
   $instructions[$addr]{writes_f} =
     ( defined $arg2 && $arg2 eq 'f') || ($mnemonic =~ /f$/ && (!defined $arg2 || $arg2 ne 'w'));
 
-  if(defined $arg1 && $arg1 == $PCL && $instructions[$addr]{writes_f})
+  if(defined $arg1 && $arg1 == $regmaps{PCL} && $instructions[$addr]{writes_f})
   {
     say sprintf "WARNING: Manipulating PCL in 0x%x. Not supported yet", $addr;
   }
@@ -205,8 +204,8 @@ sub traceProgramFlow
 
     if ($instruction->{writes_f})
     {
-      handleWriteF_bankless($instruction, $state, $addr, $PCLATH, 'pclath');
-      handleWriteF_bankless($instruction, $state, $addr, $STATUS, 'status');
+      handleWriteF_bankless($instruction, $state, $addr, $regmaps{PCLATH}, 'pclath');
+      handleWriteF_bankless($instruction, $state, $addr, $regmaps{STATUS}, 'status');
     }
 
     if ( $instruction->{writes_w} )
@@ -258,4 +257,49 @@ sub traceProgramFlow
     $traced->{$addrfrom} = 1;
     push( @$totrace, [$addrto, $state] ) if defined $totrace;
   }
+}
+
+sub parseIncludeFile
+{
+  open INC, '<', '/usr/share/gputils/header/p16f876a.inc' or die "Couldn't open include";
+
+  my ($mode, $reg);
+  while(<INC>)
+  {
+    if(/^;-+[^-].*(files|bits)/i)
+    {
+      $mode = lc $1;
+
+      if ($mode eq 'bits')
+      {
+        ($reg) = /([a-z0-9_]+)\s+Bits/i;
+        if (!defined $reg)
+        {
+          say STDERR "Couldn't parse line $_";
+          $mode = undef;
+        }
+
+        $reg = lc $reg;
+      }
+
+      next;
+    }
+    elsif( defined $mode )
+    {
+      next if /^;/;
+      next unless my ($var, $val) = /^(\S+)\s+equ\s+h'([0-9a-z]+)'/i;
+      $val = hex $val;
+
+      if ($mode eq 'files')
+      {
+        $regmaps{$var} = $val;
+      }
+      else
+      {
+        $bitmaps{$reg}{$val} = $var;
+      }
+    }
+  }
+
+  close INC;
 }
