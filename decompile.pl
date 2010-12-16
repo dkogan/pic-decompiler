@@ -279,8 +279,6 @@ sub parseIncludeFile
           say STDERR "Couldn't parse line $_";
           $mode = undef;
         }
-
-        $reg = lc $reg;
       }
 
       next;
