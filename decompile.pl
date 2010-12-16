@@ -332,24 +332,28 @@ sub mapRegisters
   {
     next unless defined $instruction && defined $instruction->{mnemonic};
 
+    if(!%{$instruction->{from}})
+    {
+      $instruction->{annotated} = 'unreachable';
+      next;
+    }
+
     my $annotated = "$instruction->{mnemonic}	";
     my $arg1 = $instruction->{arg1};
     my $arg2 = $instruction->{arg2};
     if($instruction->{accesses_f} && defined $arg1)
     {
       my $state = $instruction->{state};
-      if(!defined $state->{status})
+      if(defined $state->{status})
       {
-        next;
-      }
+        $arg1 |= 0x80  if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+        $arg1 |= 0x100 if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
 
-      $arg1 |= 0x80  if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
-      $arg1 |= 0x100 if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
-
-      $arg1 = $regmaps{$arg1} if defined $regmaps{$arg1};
-      if(defined $arg2 && defined $bitmaps{$arg1}{$arg2})
-      {
-        $arg2 = $bitmaps{$arg1}{$arg2};
+        $arg1 = $regmaps{$arg1} if defined $regmaps{$arg1};
+        if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
+        {
+          $arg2 = $bitmaps{$arg1}{$arg2};
+        }
       }
     }
 
