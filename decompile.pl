@@ -317,6 +317,7 @@ sub parseIncludeFile
 # The PIC include files do not include the redundant register mappings so I add them here manually
 sub addExtraRegisterMappings
 {
+  $regmaps{0x180} = $regmaps{0x100} = $regmaps{0x80} = $regmaps{0x0};
   $regmaps{0x101} = $regmaps{0x001};
   $regmaps{0x181} = $regmaps{0x081};
   $regmaps{0x182} = $regmaps{0x102} = $regmaps{0x82} = $regmaps{0x2};
