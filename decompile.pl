@@ -5,8 +5,9 @@ use feature qw(say);
 use List::MoreUtils qw(indexes);
 use Data::Dumper;
 
-my (%regmaps, %bitmaps);
+my (%regaddrs, %regmaps, %bitmaps);
 parseIncludeFile();
+addExtraRegisterMappings();
 
 my @lines = <>;
 
@@ -57,7 +58,9 @@ foreach my $line (@lines)
   $instructions[$addr]{writes_f} =
     ( defined $arg2 && $arg2 eq 'f') || ($mnemonic =~ /f$/ && (!defined $arg2 || $arg2 ne 'w'));
 
-  if(defined $arg1 && $arg1 == $regmaps{PCL} && $instructions[$addr]{writes_f})
+  $instructions[$addr]{accesses_f} = $mnemonic =~ /f$|btfs|cfsz/;
+
+  if(defined $arg1 && $arg1 == $regaddrs{PCL} && $instructions[$addr]{writes_f})
   {
     say sprintf "WARNING: Manipulating PCL in 0x%x. Not supported yet", $addr;
   }
@@ -73,6 +76,9 @@ if(0)
   foreach(@instructions_undefined  ) { say sprintf "Undefined   instruction at 0x%x", $_; }
   foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
 }
+
+mapRegisters();
+printAnnotated();
 
 sub traceProgramFlow
 {
@@ -205,8 +211,8 @@ sub traceProgramFlow
 
     if ($instruction->{writes_f})
     {
-      handleWriteF_bankless($instruction, $state, $addr, $regmaps{PCLATH}, 'pclath');
-      handleWriteF_bankless($instruction, $state, $addr, $regmaps{STATUS}, 'status');
+      handleWriteF_bankless($instruction, $state, $addr, $regaddrs{PCLATH}, 'pclath');
+      handleWriteF_bankless($instruction, $state, $addr, $regaddrs{STATUS}, 'status');
     }
 
     if ( $instruction->{writes_w} )
@@ -291,14 +297,87 @@ sub parseIncludeFile
 
       if ($mode eq 'files')
       {
-        $regmaps{$var} = $val;
+        $regaddrs{$var} = $val;
+        $regmaps {$val} = $var;
       }
       else
       {
-        $bitmaps{$reg}{$val} = $var;
+        $bitmaps{$reg}{$val}        = $var;
+        $bitmaps{$reg}{addrs}{$var} = $val;
       }
     }
   }
 
   close INC;
+}
+
+# The PIC include files do not include the redundant register mappings so I add them here manually
+sub addExtraRegisterMappings
+{
+  $regmaps{0x101} = $regmaps{0x001};
+  $regmaps{0x181} = $regmaps{0x081};
+  $regmaps{0x182} = $regmaps{0x102} = $regmaps{0x82} = $regmaps{0x2};
+  $regmaps{0x183} = $regmaps{0x103} = $regmaps{0x83} = $regmaps{0x3};
+  $regmaps{0x184} = $regmaps{0x104} = $regmaps{0x84} = $regmaps{0x4};
+  $regmaps{0x106} = $regmaps{0x006};
+  $regmaps{0x186} = $regmaps{0x086};
+  $regmaps{0x18a} = $regmaps{0x10a} = $regmaps{0x8a} = $regmaps{0xa};
+  $regmaps{0x18b} = $regmaps{0x10b} = $regmaps{0x8b} = $regmaps{0xb};
+}
+
+sub mapRegisters
+{
+  foreach my $instruction (@instructions)
+  {
+    next unless defined $instruction && defined $instruction->{mnemonic};
+
+    my $annotated = "$instruction->{mnemonic}	";
+    my $arg1 = $instruction->{arg1};
+    my $arg2 = $instruction->{arg2};
+    if($instruction->{accesses_f} && defined $arg1)
+    {
+      my $state = $instruction->{state};
+      if(!defined $state->{status})
+      {
+        next;
+      }
+
+      $arg1 |= 0x80  if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+      $arg1 |= 0x100 if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
+
+      $arg1 = $regmaps{$arg1} if defined $regmaps{$arg1};
+      if(defined $arg2 && defined $bitmaps{$arg1}{$arg2})
+      {
+        $arg2 = $bitmaps{$arg1}{$arg2};
+      }
+    }
+
+    if(defined $arg1)
+    {
+      $annotated .= $arg1;
+      if(defined $arg2)
+      {
+        $annotated .= ", $arg2";
+      }
+    }
+
+    $instruction->{annotated} = $annotated;
+  }
+}
+
+sub printAnnotated
+{
+  foreach my $instruction (@instructions)
+  {
+    next if !defined $instruction->{line};
+    printf "%-40s", $instruction->{line};
+
+    next if !defined $instruction->{annotated};
+
+    print "; $instruction->{annotated}";
+  }
+  continue
+  {
+    print "\n";
+  }
 }
