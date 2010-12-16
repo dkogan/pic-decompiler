@@ -361,6 +361,8 @@ sub mapRegisters
 
     if(defined $arg1)
     {
+      if($arg1 =~ /^[0-9]*$/) { $arg1 = sprintf("0x%x", $arg1); }
+
       $annotated .= $arg1;
       if(defined $arg2)
       {
