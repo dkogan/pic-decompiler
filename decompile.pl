@@ -61,6 +61,8 @@ foreach my $line (@lines)
 
   $instructions[$addr]{accesses_f} = $mnemonic =~ /f$|btfs|cfsz/;
 
+  $instructions[$addr]{returns} = $mnemonic =~ /return|retlw|retfie/;
+
   if(defined $arg1 && $arg1 == $regaddrs{PCL} && $instructions[$addr]{writes_f})
   {
     say sprintf "WARNING: Manipulating PCL in 0x%x. Not supported yet", $addr;
@@ -380,6 +382,9 @@ sub printAnnotated
     next if !defined $instruction->{annotated};
 
     print "; $instruction->{annotated}";
+
+    # extra newline if we're returning. This increases visibility of functions
+    if($instruction->{returns}) { print "\n"; }
   }
   continue
   {
