@@ -74,8 +74,6 @@ if(0)
   foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
 }
 
-print Dumper($instructions[0x31]);
-
 sub traceProgramFlow
 {
   # pclath is upper 5 bits of the program counter, stored at a bit vector if I'm
