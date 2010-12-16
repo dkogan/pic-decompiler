@@ -345,38 +345,47 @@ sub annotate
       next;
     }
 
-    my $annotated = "$instruction->{mnemonic}	";
-    my $arg1 = $instruction->{arg1};
-    my $arg2 = $instruction->{arg2};
-    if($instruction->{accesses_f} && defined $arg1)
-    {
-      my $state = $instruction->{state};
-      if(defined $state->{status})
-      {
-        $arg1 |= 0x80  if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
-        $arg1 |= 0x100 if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
-
-        $arg1 = $regmaps{$arg1} if defined $regmaps{$arg1};
-        if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
-        {
-          $arg2 = $bitmaps{$arg1}{$arg2};
-        }
-      }
-    }
-
-    if(defined $arg1)
-    {
-      if($arg1 =~ /^[0-9]*$/) { $arg1 = sprintf("0x%x", $arg1); }
-
-      $annotated .= $arg1;
-      if(defined $arg2)
-      {
-        $annotated .= ", $arg2";
-      }
-    }
+    my $annotated = annotateMappedRegisters($instruction);
 
     $instruction->{annotated} = $annotated;
   }
+}
+
+sub annotateMappedRegisters
+{
+  my ($instruction) = @_;
+
+  my $annotated = "$instruction->{mnemonic}	";
+  my $arg1 = $instruction->{arg1};
+  my $arg2 = $instruction->{arg2};
+  if($instruction->{accesses_f} && defined $arg1)
+  {
+    my $state = $instruction->{state};
+    if(defined $state->{status})
+    {
+      $arg1 |= 0x80  if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+      $arg1 |= 0x100 if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
+
+      $arg1 = $regmaps{$arg1} if defined $regmaps{$arg1};
+      if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
+      {
+        $arg2 = $bitmaps{$arg1}{$arg2};
+      }
+    }
+  }
+
+  if(defined $arg1)
+  {
+    if($arg1 =~ /^[0-9]*$/) { $arg1 = sprintf("0x%x", $arg1); }
+
+    $annotated .= $arg1;
+    if(defined $arg2)
+    {
+      $annotated .= ", $arg2";
+    }
+  }
+
+  return $annotated;
 }
 
 sub printAnnotated
