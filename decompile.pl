@@ -80,7 +80,7 @@ if(0)
   foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
 }
 
-mapRegisters();
+annotate();
 printAnnotated();
 
 sub traceProgramFlow
@@ -329,7 +329,7 @@ sub addExtraRegisterMappings
   $regmaps{0x18b} = $regmaps{0x10b} = $regmaps{0x8b} = $regmaps{0xb};
 }
 
-sub mapRegisters
+sub annotate
 {
   foreach my $instruction (@instructions)
   {
