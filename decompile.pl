@@ -68,8 +68,11 @@ traceProgramFlow();
 my @instructions_undefined   = indexes {!defined $_ || !defined $_->{addr} } @instructions;
 my @instructions_unreachable = grep { defined $_ && !%{$_->{from}}         } @instructions;
 
-foreach(@instructions_undefined  ) { say sprintf "Undefined   instruction at 0x%x", $_; }
-foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
+if(0)
+{
+  foreach(@instructions_undefined  ) { say sprintf "Undefined   instruction at 0x%x", $_; }
+  foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
+}
 
 print Dumper($instructions[0x31]);
 
