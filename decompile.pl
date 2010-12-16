@@ -4,12 +4,13 @@ use warnings;
 use feature qw(say);
 use List::MoreUtils qw(indexes);
 use Data::Dumper;
+use Text::Tabs;
 
 my (%regaddrs, %regmaps, %bitmaps);
 parseIncludeFile();
 addExtraRegisterMappings();
 
-my @lines = <>;
+my @lines = expand <>; # slurp all lines, convert tabs to spaces
 
 my @instructions;
 
