@@ -55,7 +55,7 @@ foreach my $line (@lines)
     ( defined $arg2 && $arg2 eq 'w') || $mnemonic =~ /w$/;
 
   $instructions[$addr]{writes_f} =
-    ( defined $arg2 && $arg2 eq 'f') || (!defined $arg2 && $mnemonic =~ /f$/);
+    ( defined $arg2 && $arg2 eq 'f') || ($mnemonic =~ /f$/ && (!defined $arg2 || $arg2 ne 'w'));
 
   if(defined $arg1 && $arg1 == $PCL && $instructions[$addr]{writes_f})
   {
