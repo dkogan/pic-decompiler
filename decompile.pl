@@ -138,14 +138,25 @@ sub traceProgramFlow
       %{$instruction->{state}} = %$state;
       updateState($instruction, $state, $addr);
 
+      if ($instruction->{accesses_f} && defined $instruction->{arg1})
+      {
+        if (defined $instruction->{state} && defined $instruction->{state}{status})
+        {
+          $instruction->{arg1_expanded} = $instruction->{arg1};
+
+          $instruction->{arg1_expanded} |= 0x80  if $instruction->{state}{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+          $instruction->{arg1_expanded} |= 0x100 if $instruction->{state}{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
+          $instruction->{arg1_expanded} = $regmaps{$instruction->{arg1_expanded}} if defined $regmaps{$instruction->{arg1_expanded}};
+        }
+      }
+
       # now handle the program flow
       my $addrto;
 
       if ($instruction->{mnemonic} eq 'goto')
       {
-        $addrto = $instruction->{arg1};
-        $addrto +=
-          ($state->{pclath} & 0x18) << 8;
+        $instruction->{arg1_expanded} = $instruction->{arg1} + (($state->{pclath} & 0x18) << 8);
+        $addrto = $instruction->{arg1_expanded};
       }
       elsif ($instruction->{mnemonic} =~ /btfs.|..cfsz/)
       {
@@ -157,9 +168,8 @@ sub traceProgramFlow
       }
       elsif ($instruction->{mnemonic} eq 'call')
       {
-        $addrto = $instruction->{arg1};
-        $addrto +=
-          ($state->{pclath} & 0x18) << 8;
+        $instruction->{arg1_expanded} = $instruction->{arg1} + (($state->{pclath} & 0x18) << 8);
+        $addrto = $instruction->{arg1_expanded};
 
         # I add the call execution link, but do NOT add it to @totrace, since
         # I'll recursively trace it
@@ -363,10 +373,8 @@ sub annotateMappedRegisters
     my $state = $instruction->{state};
     if(defined $state->{status})
     {
-      $arg1 |= 0x80  if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
-      $arg1 |= 0x100 if $state->{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
+      $arg1 = $instruction->{arg1_expanded} if defined $instruction->{arg1_expanded};
 
-      $arg1 = $regmaps{$arg1} if defined $regmaps{$arg1};
       if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
       {
         $arg2 = $bitmaps{$arg1}{$arg2};
