@@ -365,19 +365,13 @@ sub annotateMappedRegisters
   my ($instruction) = @_;
 
   my $annotated = "$instruction->{mnemonic}	";
-  my $arg1 = $instruction->{arg1};
+  my $arg1 = $instruction->{arg1_expanded} // $instruction->{arg1};
   my $arg2 = $instruction->{arg2};
   if($instruction->{accesses_f} && defined $arg1)
   {
-    my $state = $instruction->{state};
-    if(defined $state->{status})
+    if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
     {
-      $arg1 = $instruction->{arg1_expanded} if defined $instruction->{arg1_expanded};
-
-      if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
-      {
-        $arg2 = $bitmaps{$arg1}{$arg2};
-      }
+      $arg2 = $bitmaps{$arg1}{$arg2};
     }
   }
 
