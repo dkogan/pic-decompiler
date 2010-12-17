@@ -351,7 +351,6 @@ sub annotate
 
     if(!%{$instruction->{from}})
     {
-      $instruction->{annotated} = 'unreachable';
       next;
     }
 
