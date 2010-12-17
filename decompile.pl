@@ -108,7 +108,7 @@ sub traceProgramFlow
 
     if( @$callstack > 25)
     {
-      say "WARNING: call stack too deep";
+      say sprintf "WARNING: call stack too deep at 0x%x", $addr;
       return;
     }
 
