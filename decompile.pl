@@ -5,6 +5,7 @@ use feature qw(say);
 use List::MoreUtils qw(indexes);
 use Data::Dumper;
 use Text::Tabs;
+use Storable qw(dclone);
 
 my (%regaddrs, %regmaps, %bitmaps);
 parseIncludeFile();
@@ -135,7 +136,8 @@ sub traceProgramFlow
 
       # first, handle anything that needs to happen in the instruction itself
       push @{$instruction->{callstack}}, $callstack;
-      %{$instruction->{state}} = %$state;
+      $instruction->{state} = $state;
+      $state = dclone($state);
       updateState($instruction, $state, $addr);
 
       if ($instruction->{accesses_f} && defined $instruction->{arg1})
