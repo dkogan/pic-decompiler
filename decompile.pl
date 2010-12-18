@@ -77,7 +77,6 @@ if(0)
   foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
 }
 
-annotate();
 printAnnotated();
 
 
@@ -391,41 +390,29 @@ sub expandArguments
   }
 }
 
-sub annotate
-{
-  foreach my $instruction (@instructions)
-  {
-    if(defined $instruction)
-    {
-      $instruction->{annotated} = "$instruction->{mnemonic}	";
-      if(defined $instruction->{arg1_expanded_print})
-      {
-        $instruction->{annotated} .= "     $instruction->{arg1_expanded_print}";
-        if (defined $instruction->{arg2_expanded_print})
-        {
-          $instruction->{annotated} .= ", $instruction->{arg2_expanded_print}";
-        }
-      }
-    }
-  }
-}
-
 sub printAnnotated
 {
   foreach my $instruction (@instructions)
   {
-    next if !defined $instruction->{line};
-    printf "%-40s", $instruction->{line};
+    next if !defined  $instruction->{line};
+    printf "%-40s; ", $instruction->{line};
 
-    next if !defined $instruction->{annotated};
+    if(defined $instruction)
+    {
+      print $instruction->{mnemonic};
+      if(defined $instruction->{arg1_expanded_print})
+      {
+        print "		$instruction->{arg1_expanded_print}";
+        if (defined $instruction->{arg2_expanded_print})
+        {
+          print ", $instruction->{arg2_expanded_print}";
+        }
+      }
 
-    print "; $instruction->{annotated}";
+      print "\n";
 
-    # extra newline if we're returning. This increases visibility of functions
-    if($instruction->{returns}) { print "\n"; }
-  }
-  continue
-  {
-    print "\n";
+      # extra newline if we're returning. This increases visibility of functions
+      if($instruction->{returns}) { print "\n"; }
+    }
   }
 }
