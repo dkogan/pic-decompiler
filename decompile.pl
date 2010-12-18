@@ -136,7 +136,7 @@ sub traceProgramFlow
 
       if ($instruction->{mnemonic} eq 'goto')
       {
-        $addrto = $instruction->{arg1_expanded};
+        $addrto = $instruction->{arg1_expanded_num};
       }
       elsif ($instruction->{mnemonic} =~ /btfs.|..cfsz/)
       {
@@ -148,7 +148,7 @@ sub traceProgramFlow
       }
       elsif ($instruction->{mnemonic} eq 'call')
       {
-        $addrto = $instruction->{arg1_expanded};
+        $addrto = $instruction->{arg1_expanded_num};
 
         # I add the call execution link, but do NOT add it to @totrace, since
         # I'll recursively trace it
@@ -341,30 +341,32 @@ sub expandArgumentNames
 {
   my ($instruction) = @_;
 
+  my $arg1          = \$instruction->{arg1};
+  my $arg2          = \$instruction->{arg2};
+  $instruction->{arg1_expanded_num}   = $$arg1;
+  $instruction->{arg2_expanded_num}   = $$arg2;
+  $instruction->{arg1_expanded_print} = $$arg1;
+  $instruction->{arg2_expanded_print} = $$arg2;
+  my $arg1_expanded_num   = \$instruction->{arg1_expanded_num};
+  my $arg2_expanded_num   = \$instruction->{arg2_expanded_num};
+  my $arg1_expanded_print = \$instruction->{arg1_expanded_print};
+  my $arg2_expanded_print = \$instruction->{arg2_expanded_print};
+
   if ($instruction->{accesses_f} && defined $instruction->{arg1})
   {
     if (defined $instruction->{state} && defined $instruction->{state}{STATUS})
     {
-      my $arg1          = \$instruction->{arg1};
-      my $arg2          = \$instruction->{arg2};
-
-      $instruction->{arg1_expanded} = $$arg1;
-      $instruction->{arg2_expanded} = $$arg2;
-
-      my $arg1_expanded = \$instruction->{arg1_expanded};
-      my $arg2_expanded = \$instruction->{arg2_expanded};
-
       # grab the full register address, taking into account banking
-      $$arg1_expanded |= 0x80  if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP0});
-      $$arg1_expanded |= 0x100 if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP1});
+      $$arg1_expanded_num |= 0x80  if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+      $$arg1_expanded_num |= 0x100 if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP1});
 
       # convert register address to its name
-      $$arg1_expanded = $regmaps{$$arg1_expanded} if defined $regmaps{$$arg1_expanded};
+      $$arg1_expanded_print = $regmaps{$$arg1_expanded_num} if defined $regmaps{$$arg1_expanded_num};
 
       # If arg2 is a bit access instruction, convert arg2 to the name of the bit
-      if ($instruction->{accesses_bit} && defined $bitmaps{$$arg1_expanded}{$$arg2})
+      if ($instruction->{accesses_bit} && defined $bitmaps{$$arg1_expanded_num}{$$arg2})
       {
-        $$arg2_expanded = $bitmaps{$$arg1_expanded}{$$arg2};
+        $$arg2_expanded_print = $bitmaps{$$arg1_expanded_num}{$$arg2};
       }
     }
   }
@@ -379,8 +381,13 @@ sub expandArgumentNames
     # call/goto instruction contain 11 bits in the opcode, with the rest coming
     # from the upper 2 bits of the lower 5 bits of PCLATH. This masks to 0x18
     # and I hardcode it since it's fundamental to the PIC16
-    $instruction->{arg1_expanded} =
-      $instruction->{arg1} + (($instruction->{state}{PCLATH} & 0x18) << 8);
+    $$arg1_expanded_num += ($instruction->{state}{PCLATH} & 0x18) << 8;
+  }
+
+
+  foreach($$arg1_expanded_print, $$arg2_expanded_print)
+  {
+    $_ = sprintf("0x%x", $_) if defined $_ && /^[0-9]*$/;
   }
 }
 
@@ -388,46 +395,19 @@ sub annotate
 {
   foreach my $instruction (@instructions)
   {
-    next unless defined $instruction && defined $instruction->{mnemonic};
-
-    if(!%{$instruction->{from}})
+    if(defined $instruction)
     {
-      next;
-    }
-
-    my $annotated = expandRegisterMappings($instruction);
-
-    $instruction->{annotated} = $annotated;
-  }
-}
-
-sub expandRegisterMappings
-{
-  my ($instruction) = @_;
-
-  my $annotated = "$instruction->{mnemonic}	";
-  my $arg1 = $instruction->{arg1_expanded} // $instruction->{arg1};
-  my $arg2 = $instruction->{arg2};
-  if($instruction->{accesses_f} && defined $arg1)
-  {
-    if (defined $arg2 && defined $bitmaps{$arg1}{$arg2})
-    {
-      $arg2 = $bitmaps{$arg1}{$arg2};
+      $instruction->{annotated} = "$instruction->{mnemonic}	";
+      if(defined $instruction->{arg1_expanded_print})
+      {
+        $instruction->{annotated} .= "     $instruction->{arg1_expanded_print}";
+        if (defined $instruction->{arg2_expanded_print})
+        {
+          $instruction->{annotated} .= ", $instruction->{arg2_expanded_print}";
+        }
+      }
     }
   }
-
-  if(defined $arg1)
-  {
-    if($arg1 =~ /^[0-9]*$/) { $arg1 = sprintf("0x%x", $arg1); }
-
-    $annotated .= $arg1;
-    if(defined $arg2)
-    {
-      $annotated .= ", $arg2";
-    }
-  }
-
-  return $annotated;
 }
 
 sub printAnnotated
