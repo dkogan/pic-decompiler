@@ -364,9 +364,9 @@ sub expandArguments
       $$arg1_expanded_print = $regmaps{$$arg1_expanded_num} if defined $regmaps{$$arg1_expanded_num};
 
       # If arg2 is a bit access instruction, convert arg2 to the name of the bit
-      if ($instruction->{accesses_bit} && defined $bitmaps{$$arg1_expanded_num}{$$arg2})
+      if ($instruction->{accesses_bit} && defined $bitmaps{$$arg1_expanded_print}{$$arg2})
       {
-        $$arg2_expanded_print = $bitmaps{$$arg1_expanded_num}{$$arg2};
+        $$arg2_expanded_print = $bitmaps{$$arg1_expanded_print}{$$arg2};
       }
     }
   }
