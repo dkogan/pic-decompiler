@@ -77,6 +77,7 @@ if(0)
   foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
 }
 
+markUninteresting();
 printAnnotated();
 
 
@@ -390,6 +391,28 @@ sub expandArguments
   }
 }
 
+sub markUninteresting
+{
+  foreach my $instruction (@instructions)
+  {
+    next unless defined($instruction->{addr});
+    next unless $instruction->{writes_f};
+    if($instruction->{arg1_expanded_print} =~ /PCLATH/)
+    {
+      $instruction->{uninteresting} = 1;
+      next
+    }
+
+    if($instruction->{arg1_expanded_print} =~ /STATUS/ &&
+       $instruction->{mnemonic} =~ /^b[cs]f$/ &&
+       $instruction->{arg2_expanded_print} =~ /^RP[01]$/)
+    {
+      $instruction->{uninteresting} = 1;
+      next
+    }
+  }
+}
+
 sub printAnnotated
 {
   foreach my $instruction (@instructions)
@@ -397,7 +420,7 @@ sub printAnnotated
     next if !defined  $instruction->{line};
     printf "%-40s; ", $instruction->{line};
 
-    if(defined $instruction)
+    if(!$instruction->{uninteresting})
     {
       print $instruction->{mnemonic};
       if(defined $instruction->{arg1_expanded_print})
@@ -408,6 +431,7 @@ sub printAnnotated
           print ", $instruction->{arg2_expanded_print}";
         }
       }
+    }
 
       print "\n";
 
