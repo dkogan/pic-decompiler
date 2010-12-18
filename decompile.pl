@@ -48,9 +48,6 @@ foreach my $line (@lines)
                           from      => {},
                           to        => {},
 
-                          # persistent state at the beginning of this instruction
-                          state     => {},
-
                           # different possibilities for the call stack when we get here
                           callstack => []};
 
@@ -91,20 +88,23 @@ sub traceProgramFlow
 {
   # pclath is upper 5 bits of the program counter, stored at a bit vector if I'm
   # manipulating PCL, all 5 are used. A call or goto uses only the top 2
-  # bits. 'x' means unknown/inconsistent value
-  my $originalstate = {pclath => 0,
-                       status => 0,
-                       w      => 0};
+  # bits
+  my $state0 = {PCLATH => 0,
+                STATUS => 0,
+                w      => 0};
 
   # trace all execution paths from the start of the program
-  traceCall(0, [], $originalstate);
+  traceCall(0, '', [], $state0);
 
   # trace all execution paths from the start of the ISR
-  traceCall(4, [], $originalstate, 'isr');
+  traceCall(4, 'isr', [], $state0);
 
   sub traceCall
   {
-    my ($addr, $callstack, $state, $isisr) = @_;
+    my ($addr, $isisr, $callstack, $state0) = @_;
+
+    # by default, set the state to state0
+    $instructions[$addr]->{state} //= $state0;
 
     if( @$callstack > 25)
     {
@@ -113,12 +113,10 @@ sub traceProgramFlow
     }
 
     my %traced  = ();
-    my @totrace = ([$addr, $state]);
+    my @totrace = ($addr);
 
-    while(defined (my $traceElement = shift @totrace) )
+    while(defined (my $addr = shift @totrace) )
     {
-      ($addr, $state) = @$traceElement;
-
       my $instruction = $instructions[$addr];
       if(!defined $instruction || !defined $instruction->{addr})
       {
@@ -126,20 +124,12 @@ sub traceProgramFlow
         next;
       }
 
-      if( $traced{$addr} )
-      {
-        findStateConflicts($state, $instruction->{state}) or
-          say STDERR sprintf "WARNING: state conflict in 0x%x", $addr;
-        next;
-      }
+      next if( $traced{$addr} );
 
       # first, handle anything that needs to happen in the instruction itself
       push @{$instruction->{callstack}}, $callstack;
-      $instruction->{state} = $state;
-      $state = dclone($state);
-      updateState($instruction, $state, $addr);
-
       expandArgumentNames($instruction);
+      my $newstate = updateState($addr);
 
       # now handle the program flow
       my $addrto;
@@ -154,7 +144,7 @@ sub traceProgramFlow
         $addrto = $addr + 1;
 
         # handle the skipped instruction case later
-        addExecutionPath($addr, $addr + 2, $state, \%traced, \@totrace);
+        addExecutionPath($addr, $addr + 2, $newstate, \%traced, \@totrace);
       }
       elsif ($instruction->{mnemonic} eq 'call')
       {
@@ -162,14 +152,13 @@ sub traceProgramFlow
 
         # I add the call execution link, but do NOT add it to @totrace, since
         # I'll recursively trace it
-        addExecutionPath($addr, $addrto, $state, \%traced);
-
-        traceCall($addrto, [@$callstack, $addr + 1], $state, $isisr);
+        addExecutionPath($addr, $addrto, $newstate, \%traced);
+        traceCall($addrto, $isisr, [@$callstack, $addr + 1]);
 
         # continue tracing from the call return. Note that the state has changed
         # at this point, but I'm adding the old one to the list. This is WRONG
         $addrto = $addr + 1;
-        push @totrace, [$addrto, $state];
+        push @totrace, $addrto;
         next;
 
       }
@@ -182,7 +171,7 @@ sub traceProgramFlow
         }
 
         $addrto = $callstack->[$#$callstack];
-        addExecutionPath($addr, $addrto, $state, \%traced);
+        addExecutionPath($addr, $addrto, $newstate, \%traced);
         next;
       }
       elsif ($instruction->{mnemonic} =~ /retfie/)
@@ -205,46 +194,52 @@ sub traceProgramFlow
         $addrto = $addr + 1;
       }
 
-      addExecutionPath($addr, $addrto, $state, \%traced, \@totrace);
+      addExecutionPath($addr, $addrto, $newstate, \%traced, \@totrace);
     }
-
-
   }
 
   sub updateState
   {
-    my ($instruction, $state, $addr) = @_;
+    my ($addr) = @_;
+
+    my $instruction = $instructions[$addr];
+    my $newstate    = dclone( $instruction->{state} );
 
     if ($instruction->{writes_f})
     {
-      handleWriteF_bankless($instruction, $state, $addr, $regaddrs{PCLATH}, 'pclath');
-      handleWriteF_bankless($instruction, $state, $addr, $regaddrs{STATUS}, 'status');
+      handleWriteF_bankless($addr, $newstate, 'PCLATH');
+      handleWriteF_bankless($addr, $newstate, 'STATUS');
     }
 
     if ( $instruction->{writes_w} )
     {
       if ( $instruction->{mnemonic} eq 'movlw' )
-      { $state->{w} = $instruction->{arg1}; }
+      { $newstate->{w} = $instruction->{arg1}; }
       else
       {
         # there will be way to many of these
         #        say STDERR sprintf "WARNING: manipulating W with $instruction->{mnemonic} in 0x%x not yet supported", $addr;
       }
     }
+
+    return $newstate;
   }
 
   sub handleWriteF_bankless
   {
-    my ($instruction, $state, $addr, $REG, $reg) = @_;
+    my ($addr, $newstate, $reg) = @_;
+    my $regaddr = $regaddrs{$reg};
 
-    if (defined $instruction->{arg1} && $instruction->{arg1} == $REG)
+    my $instruction = $instructions[$addr];
+
+    if (defined $instruction->{arg1} && $instruction->{arg1} == $regaddr)
     {
       if ($instruction->{mnemonic} eq 'bsf')
-      { $state->{$reg} |=  (1 << $instruction->{arg2}); }
+      { $newstate->{$reg} |=  (1 << $instruction->{arg2}); }
       elsif ($instruction->{mnemonic} eq 'bcf')
-      { $state->{$reg} &= ~(1 << $instruction->{arg2}); }
+      { $newstate->{$reg} &= ~(1 << $instruction->{arg2}); }
       elsif ($instruction->{mnemonic} eq 'movwf')
-      { $state->{$reg} = $state->{w}; }
+      { $newstate->{$reg} = $newstate->{w}; }
       else
       {
         say STDERR sprintf "WARNING: manipulating $reg with $instruction->{mnemonic} in 0x%x not yet supported", $addr;
@@ -256,7 +251,7 @@ sub traceProgramFlow
   {
     my ($state0, $state1) = @_;
 
-    return undef if $state0->{pclath} != $state0->{pclath};
+    return undef if $state0->{PCLATH} != $state0->{PCLATH};
 
     # should check for w conflicts here, but there will be many
     return 1;
@@ -264,11 +259,21 @@ sub traceProgramFlow
 
   sub addExecutionPath
   {
-    my ($addrfrom, $addrto, $state, $traced, $totrace) = @_;
-    $instructions[$addrto  ]->{from}{$addrfrom} = 1;
+    my ($addrfrom, $addrto, $newstate, $traced, $totrace) = @_;
     $instructions[$addrfrom]->{to  }{$addrto  } = 1;
+    $instructions[$addrto  ]->{from}{$addrfrom} = 1;
+
+    # before I store the new CPU state, I check for conflicts
+    if(defined $instructions[$addrto  ]->{state} &&
+       !findStateConflicts($instructions[$addrto  ]->{state}, $newstate))
+    {
+      say STDERR sprintf "WARNING: state conflict in 0x%x", $addrto;
+    }
+
+    $instructions[$addrto  ]->{state} = $newstate;
+
     $traced->{$addrfrom} = 1;
-    push( @$totrace, [$addrto, $state] ) if defined $totrace;
+    push( @$totrace, $addrto ) if defined $totrace;
   }
 }
 
@@ -338,7 +343,7 @@ sub expandArgumentNames
 
   if ($instruction->{accesses_f} && defined $instruction->{arg1})
   {
-    if (defined $instruction->{state} && defined $instruction->{state}{status})
+    if (defined $instruction->{state} && defined $instruction->{state}{STATUS})
     {
       my $arg1          = \$instruction->{arg1};
       my $arg2          = \$instruction->{arg2};
@@ -350,8 +355,8 @@ sub expandArgumentNames
       my $arg2_expanded = \$instruction->{arg2_expanded};
 
       # grab the full register address, taking into account banking
-      $$arg1_expanded |= 0x80  if $instruction{state}{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
-      $$arg1_expanded |= 0x100 if $instruction{state}{status} & (1 << $bitmaps{STATUS}{addrs}{R10});
+      $$arg1_expanded |= 0x80  if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+      $$arg1_expanded |= 0x100 if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP1});
 
       # convert register address to its name
       $$arg1_expanded = $regmaps{$$arg1_expanded} if defined $regmaps{$$arg1_expanded};
@@ -367,7 +372,7 @@ sub expandArgumentNames
   if ( $instruction->{jmps} )
   {
     $instruction->{arg1_expanded} =
-      $instruction->{arg1} + (($instruction{state}{pclath} & 0x18) << 8);
+      $instruction->{arg1} + (($instruction->{state}{PCLATH} & 0x18) << 8);
   }
 }
 
