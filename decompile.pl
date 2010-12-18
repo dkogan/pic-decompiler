@@ -14,6 +14,7 @@ addExtraRegisterMappings();
 my @lines = expand <>; # slurp all lines, convert tabs to spaces
 
 my @instructions;
+my %functions;
 
 # I parse all my lines into a list of instructions
 foreach my $line (@lines)
@@ -110,13 +111,32 @@ sub traceProgramFlow
       say STDERR "ERROR: inconsistent state across function call. Should have been caught earlier when this execution link was first processed!!!!";
     }
 
+    # start keeping track of the contents of this function
+    my %functionContext;
+    if(exists $functions{$addr})
+    {
+      if( !findStateConflicts( $functions{$addr}{state0}, $state0 ) )
+      {
+        say STDERR
+          sprintf "WARNING: inconsistent state at start of different calls to a function at 0x%x", $addr;
+      }
+
+      # WARNING: this return speeds up the analysis at the expense of not listing out all the
+      # possible call stacks
+      return;
+    }
+    else
+    {
+      %functionContext = (state0 => $state0, memberInstructions => {});
+      $functions{$addr} = \%functionContext;;
+    }
+
     if( @$callstack > 25)
     {
       say sprintf "WARNING: call stack too deep at 0x%x", $addr;
       return;
     }
 
-    my %traced  = ();
     my @totrace = ($addr);
 
     while(defined (my $addr = shift @totrace) )
@@ -128,7 +148,8 @@ sub traceProgramFlow
         next;
       }
 
-      next if( $traced{$addr} );
+      next if( $functionContext{memberInstructions}{$addr} );
+      $functionContext{memberInstructions}{$addr} = 1;
 
       # first, handle anything that needs to happen in the instruction itself
       push @{$instruction->{callstack}}, $callstack;
@@ -148,7 +169,7 @@ sub traceProgramFlow
         $addrto = $addr + 1;
 
         # handle the skipped instruction case later
-        addExecutionPath($addr, $addr + 2, $newstate, \%traced, \@totrace);
+        addExecutionPath($addr, $addr + 2, $newstate, $functionContext{memberInstructions}, \@totrace);
       }
       elsif ($instruction->{mnemonic} eq 'call')
       {
@@ -156,7 +177,7 @@ sub traceProgramFlow
 
         # I add the call execution link, but do NOT add it to @totrace, since
         # I'll recursively trace it
-        addExecutionPath($addr, $addrto, $newstate, \%traced);
+        addExecutionPath($addr, $addrto, $newstate, $functionContext{memberInstructions});
         traceFunctionCall($addrto, $isisr, [@$callstack, $addr + 1]);
 
         # continue tracing from the call return. Note that the state has changed
@@ -175,7 +196,7 @@ sub traceProgramFlow
         }
 
         $addrto = $callstack->[$#$callstack];
-        addExecutionPath($addr, $addrto, $newstate, \%traced);
+        addExecutionPath($addr, $addrto, $newstate, $functionContext{memberInstructions});
         next;
       }
       elsif ($instruction->{mnemonic} =~ /retfie/)
@@ -198,7 +219,7 @@ sub traceProgramFlow
         $addrto = $addr + 1;
       }
 
-      addExecutionPath($addr, $addrto, $newstate, \%traced, \@totrace);
+      addExecutionPath($addr, $addrto, $newstate, $functionContext{memberInstructions}, \@totrace);
     }
   }
 
