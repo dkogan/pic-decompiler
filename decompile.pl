@@ -276,7 +276,7 @@ sub traceProgramFlow
   {
     my ($state0, $state1) = @_;
 
-    return undef if $state0->{PCLATH} != $state0->{PCLATH};
+    return undef if $state0->{PCLATH} != $state1->{PCLATH};
 
     # should check for w conflicts here, but there will be many
     return 1;
