@@ -433,10 +433,7 @@ sub printAnnotated
       }
     }
 
-      print "\n";
+    print "\n";
 
-      # extra newline if we're returning. This increases visibility of functions
-      if($instruction->{returns}) { print "\n"; }
-    }
   }
 }
