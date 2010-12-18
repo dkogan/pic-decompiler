@@ -395,13 +395,13 @@ sub annotate
       next;
     }
 
-    my $annotated = annotateMappedRegisters($instruction);
+    my $annotated = expandRegisterMappings($instruction);
 
     $instruction->{annotated} = $annotated;
   }
 }
 
-sub annotateMappedRegisters
+sub expandRegisterMappings
 {
   my ($instruction) = @_;
 
