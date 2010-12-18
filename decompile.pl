@@ -94,12 +94,12 @@ sub traceProgramFlow
                 w      => 0};
 
   # trace all execution paths from the start of the program
-  traceCall(0, '', [], $state0);
+  traceFunctionCall(0, '', [], $state0);
 
   # trace all execution paths from the start of the ISR
-  traceCall(4, 'isr', [], $state0);
+  traceFunctionCall(4, 'isr', [], $state0);
 
-  sub traceCall
+  sub traceFunctionCall
   {
     my ($addr, $isisr, $callstack, $state0) = @_;
 
@@ -153,7 +153,7 @@ sub traceProgramFlow
         # I add the call execution link, but do NOT add it to @totrace, since
         # I'll recursively trace it
         addExecutionPath($addr, $addrto, $newstate, \%traced);
-        traceCall($addrto, $isisr, [@$callstack, $addr + 1]);
+        traceFunctionCall($addrto, $isisr, [@$callstack, $addr + 1]);
 
         # continue tracing from the call return. Note that the state has changed
         # at this point, but I'm adding the old one to the list. This is WRONG
