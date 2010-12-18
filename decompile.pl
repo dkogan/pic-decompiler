@@ -58,7 +58,7 @@ foreach my $line (@lines)
   $instructions[$addr]{accesses_f}   = $mnemonic =~ /f$|btfs|cfsz/;
   $instructions[$addr]{jmps}         = $mnemonic =~ /goto|call/;
   $instructions[$addr]{returns}      = $mnemonic =~ /return|retlw|retfie/;
-  $instructions[$addr]{accesses_bit} = $mnemonic =~ /btfs|b.f/;
+  $instructions[$addr]{accesses_bit} = $mnemonic =~ /^(?:btfs[cs]|b[cs]f)$/;
 
   if(defined $arg1 && $arg1 == $regaddrs{PCL} && $instructions[$addr]{writes_f})
   {
