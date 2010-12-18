@@ -105,6 +105,10 @@ sub traceProgramFlow
 
     # by default, set the state to state0
     $instructions[$addr]->{state} //= $state0;
+    if( !findStateConflicts($instructions[$addr]->{state}, $state0) )
+    {
+      say STDERR "ERROR: inconsistent state across function call. Should have been caught earlier when this execution link was first processed!!!!";
+    }
 
     if( @$callstack > 25)
     {
