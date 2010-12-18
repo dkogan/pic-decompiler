@@ -139,24 +139,13 @@ sub traceProgramFlow
       $state = dclone($state);
       updateState($instruction, $state, $addr);
 
-      if ($instruction->{accesses_f} && defined $instruction->{arg1})
-      {
-        if (defined $instruction->{state} && defined $instruction->{state}{status})
-        {
-          $instruction->{arg1_expanded} = $instruction->{arg1};
-
-          $instruction->{arg1_expanded} |= 0x80  if $instruction->{state}{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
-          $instruction->{arg1_expanded} |= 0x100 if $instruction->{state}{status} & (1 << $bitmaps{STATUS}{addrs}{RP1});
-          $instruction->{arg1_expanded} = $regmaps{$instruction->{arg1_expanded}} if defined $regmaps{$instruction->{arg1_expanded}};
-        }
-      }
+      expandArgumentNames($instruction);
 
       # now handle the program flow
       my $addrto;
 
       if ($instruction->{mnemonic} eq 'goto')
       {
-        $instruction->{arg1_expanded} = $instruction->{arg1} + (($state->{pclath} & 0x18) << 8);
         $addrto = $instruction->{arg1_expanded};
       }
       elsif ($instruction->{mnemonic} =~ /btfs.|..cfsz/)
@@ -169,7 +158,6 @@ sub traceProgramFlow
       }
       elsif ($instruction->{mnemonic} eq 'call')
       {
-        $instruction->{arg1_expanded} = $instruction->{arg1} + (($state->{pclath} & 0x18) << 8);
         $addrto = $instruction->{arg1_expanded};
 
         # I add the call execution link, but do NOT add it to @totrace, since
@@ -342,6 +330,45 @@ sub addExtraRegisterMappings
   $regmaps{0x186} = $regmaps{0x086};
   $regmaps{0x18a} = $regmaps{0x10a} = $regmaps{0x8a} = $regmaps{0xa};
   $regmaps{0x18b} = $regmaps{0x10b} = $regmaps{0x8b} = $regmaps{0xb};
+}
+
+sub expandArgumentNames
+{
+  my ($instruction) = @_;
+
+  if ($instruction->{accesses_f} && defined $instruction->{arg1})
+  {
+    if (defined $instruction->{state} && defined $instruction->{state}{status})
+    {
+      my $arg1          = \$instruction->{arg1};
+      my $arg2          = \$instruction->{arg2};
+
+      $instruction->{arg1_expanded} = $$arg1;
+      $instruction->{arg2_expanded} = $$arg2;
+
+      my $arg1_expanded = \$instruction->{arg1_expanded};
+      my $arg2_expanded = \$instruction->{arg2_expanded};
+
+      # grab the full register address, taking into account banking
+      $$arg1_expanded |= 0x80  if $instruction{state}{status} & (1 << $bitmaps{STATUS}{addrs}{RP0});
+      $$arg1_expanded |= 0x100 if $instruction{state}{status} & (1 << $bitmaps{STATUS}{addrs}{R10});
+
+      # convert register address to its name
+      $$arg1_expanded = $regmaps{$$arg1_expanded} if defined $regmaps{$$arg1_expanded};
+
+      # If arg2 is a bit access instruction, convert arg2 to the name of the bit
+      if ($instruction->{accesses_bit} && defined $bitmaps{$$arg1_expanded}{$$arg2})
+      {
+        $$arg2_expanded = $bitmaps{$$arg1_expanded}{$$arg2};
+      }
+    }
+  }
+
+  if ( $instruction->{jmps} )
+  {
+    $instruction->{arg1_expanded} =
+      $instruction->{arg1} + (($instruction{state}{pclath} & 0x18) << 8);
+  }
 }
 
 sub annotate
