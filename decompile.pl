@@ -128,7 +128,7 @@ sub traceProgramFlow
 
       # first, handle anything that needs to happen in the instruction itself
       push @{$instruction->{callstack}}, $callstack;
-      expandArgumentNames($instruction);
+      expandArguments($instruction);
       my $newstate = updateState($addr);
 
       # now handle the program flow
@@ -337,7 +337,7 @@ sub addExtraRegisterMappings
   $regmaps{0x18b} = $regmaps{0x10b} = $regmaps{0x8b} = $regmaps{0xb};
 }
 
-sub expandArgumentNames
+sub expandArguments
 {
   my ($instruction) = @_;
 
