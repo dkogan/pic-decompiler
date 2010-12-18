@@ -56,13 +56,12 @@ foreach my $line (@lines)
 
   $instructions[$addr]{writes_w} =
     ( defined $arg2 && $arg2 eq 'w') || $mnemonic =~ /w$/;
-
   $instructions[$addr]{writes_f} =
     ( defined $arg2 && $arg2 eq 'f') || ($mnemonic =~ /f$/ && (!defined $arg2 || $arg2 ne 'w'));
-
-  $instructions[$addr]{accesses_f} = $mnemonic =~ /f$|btfs|cfsz/;
-
-  $instructions[$addr]{returns} = $mnemonic =~ /return|retlw|retfie/;
+  $instructions[$addr]{accesses_f}   = $mnemonic =~ /f$|btfs|cfsz/;
+  $instructions[$addr]{jmps}         = $mnemonic =~ /goto|call/;
+  $instructions[$addr]{returns}      = $mnemonic =~ /return|retlw|retfie/;
+  $instructions[$addr]{accesses_bit} = $mnemonic =~ /btfs|b.f/;
 
   if(defined $arg1 && $arg1 == $regaddrs{PCL} && $instructions[$addr]{writes_f})
   {
