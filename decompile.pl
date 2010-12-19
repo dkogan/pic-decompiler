@@ -480,7 +480,7 @@ sub markFunctionBounds
       }
     }
 
-    push @functionbounds, [$context->{memberInstructions}->min, $context->{memberInstructions}->max];
+    push @functionbounds, $context->{memberInstructions};
   }
 
   return \@functionbounds;
@@ -489,25 +489,23 @@ sub markFunctionBounds
 sub printAnnotated
 {
   my ($functionbounds) = @_;
-
-  my ($nextFuncStart, $nextFuncEnd);
-  ($nextFuncStart, $nextFuncEnd) = @{shift @$functionbounds} if @$functionbounds;
+  my $nextFunc = shift @$functionbounds if @$functionbounds;
 
   foreach my $instruction (@instructions)
   {
     next if !defined  $instruction->{line};
 
-    if(defined $nextFuncEnd && $instruction->{addr} > $nextFuncEnd)
+    if(defined $nextFunc)
     {
-      say '}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}';
-      $nextFuncEnd = undef;
-
-      ($nextFuncStart, $nextFuncEnd) = @{shift @$functionbounds} if @$functionbounds;
-    }
-    if(defined $nextFuncStart && $instruction->{addr} >= $nextFuncStart)
-    {
-      say '{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{';
-      $nextFuncStart = undef;
+      if($instruction->{addr} > $nextFunc->max)
+      {
+        say '}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}';
+        $nextFunc = shift @$functionbounds if @$functionbounds;
+      }
+      if ($instruction->{addr} == $nextFunc->min)
+      {
+        say '{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{';
+      }
     }
 
     printf "%-40s; ", $instruction->{line};
