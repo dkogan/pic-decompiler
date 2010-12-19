@@ -508,22 +508,21 @@ sub printAnnotated
       }
     }
 
-    printf "%-40s; ", $instruction->{line};
-
+    my $annotated = '';
     if(!$instruction->{uninteresting})
     {
-      print $instruction->{mnemonic};
+      $annotated .= sprintf '%-10s', $instruction->{mnemonic};
       if(defined $instruction->{arg1_expanded_print})
       {
-        print "		$instruction->{arg1_expanded_print}";
+        $annotated .= $instruction->{arg1_expanded_print};
         if (defined $instruction->{arg2_expanded_print})
         {
-          print ", $instruction->{arg2_expanded_print}";
+          $annotated .= ', ' . $instruction->{arg2_expanded_print};
         }
       }
     }
 
-    print "\n";
+    printf "%-40s; %s\n", $annotated, $instruction->{line};
 
   }
 }
