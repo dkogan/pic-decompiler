@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use feature qw(say);
-use List::MoreUtils qw(indexes);
+use List::MoreUtils qw(indexes first_index);
 use Data::Dumper;
 use Text::Tabs;
 use Storable qw(dclone);
@@ -81,6 +81,7 @@ if(0)
 
 markUninteresting();
 my $functionbounds = markFunctionBounds();
+expandConditionals($functionbounds);
 printAnnotated($functionbounds);
 
 
@@ -486,10 +487,69 @@ sub markFunctionBounds
   return \@functionbounds;
 }
 
+sub expandConditionals
+{
+  my ($functionbounds) = @_;
+
+  # look through each verified-selfcontained function
+  foreach my $bound (@$functionbounds)
+  {
+    my $addr    = $bound->min;
+    # I'm looking for beginnings of chunks of instructions (at least 2-instructions long). I thus
+    # don't need to search the extreme tail
+    my $addrmax = $bound->max - 1;
+
+    # look for a branch
+    while(1)
+    {
+      my $conditionalStartIndex = first_index {$instructions[$_]->{mnemonic} =~ /^btfs/} $addr..$addrmax;
+      last if $conditionalStartIndex < 0; # keep going as long as we're finding branches
+
+      # move addr to the start of the conditional
+      $addr += $conditionalStartIndex;
+
+      # I now look and process the conditional templates I know about
+
+      if($instructions[$addr + 1]->{mnemonic} eq 'goto')
+      {
+        # skipping over a goto
+      }
+      else
+      {
+        # skipping over something that's not a goto. This is a 1-instruction-block if
+        my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'set' : 'clear';
+
+        $instructions[$addr]->{annotated} =
+          "if ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
+        addIndent($addr + 1);
+      }
+    }
+    continue
+    {
+      # go to next instruction. don't search for the branch in the same place, since we handle it as
+      # soon as we find it
+      $addr++;
+    }
+  }
+}
+
+sub addIndent
+{
+  $instructions[$_[0]]->{indent_level} //= 0;
+  $instructions[$_[0]]->{indent_level}++;
+}
+
+sub indented
+{
+  return ('  ' x $_[1]) . $_[0];
+}
+
 sub printAnnotated
 {
   my ($functionbounds) = @_;
   my $nextFunc = shift @$functionbounds if @$functionbounds;
+
+  my $indent = 0;
 
   foreach my $instruction (@instructions)
   {
@@ -508,8 +568,18 @@ sub printAnnotated
       }
     }
 
-    my $annotated = '';
-    if(!$instruction->{uninteresting})
+    # handle the bookeeping of the indentation
+    my $curindent = $instruction->{indent_level} // 0;
+    while($curindent != $indent)
+    {
+      my $delta = $curindent - $indent;
+      if($delta > 0) { say indented('{', $indent++); }
+      else           { say indented('}', --$indent); }
+    }
+
+
+    my $annotated = $instruction->{annotated} // '';
+    if(!$annotated && !$instruction->{uninteresting})
     {
       $annotated .= sprintf '%-10s', $instruction->{mnemonic};
       if(defined $instruction->{arg1_expanded_print})
@@ -521,6 +591,8 @@ sub printAnnotated
         }
       }
     }
+
+    $annotated = indented($annotated, $indent);
 
     printf "%-40s; %s\n", $annotated, $instruction->{line};
 
