@@ -148,6 +148,7 @@ sub traceProgramFlow
         next;
       }
 
+      # skip if I've already traced this instruction. Otherwise, mark it as traced and move on
       next if( $functionContext{memberInstructions}{$addr} );
       $functionContext{memberInstructions}{$addr} = 1;
 
