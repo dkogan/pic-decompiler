@@ -385,6 +385,7 @@ sub expandArguments
       # grab the full register address, taking into account banking
       $$arg1_expanded_num |= 0x80  if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP0});
       $$arg1_expanded_num |= 0x100 if $instruction->{state}{STATUS} & (1 << $bitmaps{STATUS}{addrs}{RP1});
+      $$arg1_expanded_print = $$arg1_expanded_num;
 
       # convert register address to its name
       $$arg1_expanded_print = $regmaps{$$arg1_expanded_num} if defined $regmaps{$$arg1_expanded_num};
@@ -407,7 +408,8 @@ sub expandArguments
     # call/goto instruction contain 11 bits in the opcode, with the rest coming
     # from the upper 2 bits of the lower 5 bits of PCLATH. This masks to 0x18
     # and I hardcode it since it's fundamental to the PIC16
-    $$arg1_expanded_num += ($instruction->{state}{PCLATH} & 0x18) << 8;
+    $$arg1_expanded_num  += ($instruction->{state}{PCLATH} & 0x18) << 8;
+    $$arg1_expanded_print = $$arg1_expanded_num;
   }
 
 
