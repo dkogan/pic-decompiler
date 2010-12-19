@@ -499,12 +499,12 @@ sub printAnnotated
     {
       if($instruction->{addr} > $nextFunc->max)
       {
-        say '}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}';
+        say '}}}}}}}}}}}}}}}} function';
         $nextFunc = shift @$functionbounds if @$functionbounds;
       }
       if ($instruction->{addr} == $nextFunc->min)
       {
-        say '{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{';
+        say 'function {{{{{{{{{{{{{{{{';
       }
     }
 
