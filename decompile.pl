@@ -106,30 +106,25 @@ sub traceProgramFlow
 
     # by default, set the state to state0
     $instructions[$addr]->{state} //= $state0;
-    if( !findStateConflicts($instructions[$addr]->{state}, $state0) )
-    {
-      say STDERR "ERROR: inconsistent state across function call. Should have been caught earlier when this execution link was first processed!!!!";
-    }
 
     # start keeping track of the contents of this function
     my %functionContext;
     if(exists $functions{$addr})
     {
-      if( !findStateConflicts( $functions{$addr}{state0}, $state0 ) )
+      if( !findStateConflicts( $functions{$addr}{state0}, $instructions[$addr]->{state} ) )
       {
         say STDERR
           sprintf 'WARNING: inconsistent state at start of different calls to a function at 0x%x', $addr;
       }
 
-      # WARNING: this return speeds up the analysis at the expense of not listing out all the
-      # possible call stacks
-      return;
+      # At this point I should be able to skip tracing this function, since I've already done
+      # it. Unfortunately, the return-from-call tracing is implemented by lookintg at the local call
+      # stack, so I MUST retrace it. I should reimplement the return handling so that I can be more
+      # efficient about this
     }
-    else
-    {
-      %functionContext = (state0 => $state0, memberInstructions => {});
-      $functions{$addr} = \%functionContext;;
-    }
+
+    %functionContext = (state0 => $instructions[$addr]->{state}, memberInstructions => {});
+    $functions{$addr} = \%functionContext;;
 
     if( @$callstack > 25)
     {
