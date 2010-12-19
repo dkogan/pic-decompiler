@@ -513,16 +513,45 @@ sub expandConditionals
       if($instructions[$addr + 1]->{mnemonic} eq 'goto')
       {
         # skipping over a goto
-      }
-      else
-      {
-        # skipping over something that's not a goto. This is a 1-instruction-block if
-        my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'set' : 'clear';
+        if($addr+2 <= $bound->max && $instructions[$addr + 2]->{mnemonic} eq 'goto')
+        {
+          # btfs. goto goto
+          next;
+        }
+        else
+        {
+          # skipping over a single goto
+          # are we going forwards or backwards?
+          if($instructions[$addr + 1]->{arg1_expanded_num} > $addr+1)
+          {
+            # the skipped goto goes forward
 
-        $instructions[$addr]->{annotated} =
-          "if ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
-        addIndent($addr + 1);
+            # If I can successfully indent the section, I do that and proceed. Otherwise
+            # treat this branch as a single-instruction if
+            if( addIndent(($addr + 2)..($instructions[$addr + 1]->{arg1_expanded_num} - 1)) )
+            {
+              my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'clear' : 'set';
+
+              $instructions[$addr]->{annotated} =
+                "if ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
+              $instructions[$addr + 1]->{uninteresting} = 1;
+
+              next;
+            }
+          }
+          else
+          {
+            next;
+          }
+        }
       }
+
+      # skipping over something that's not a goto. This is a 1-instruction-block if
+      my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'set' : 'clear';
+
+      $instructions[$addr]->{annotated} =
+        "if ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
+      addIndent($addr + 1);
     }
     continue
     {
@@ -535,8 +564,24 @@ sub expandConditionals
 
 sub addIndent
 {
-  $instructions[$_[0]]->{indent_level} //= 0;
-  $instructions[$_[0]]->{indent_level}++;
+  my $curindent;
+  foreach(@_)
+  {
+    $instructions[$_]->{indent_level} //= 0;
+    $curindent //= $instructions[$_]->{indent_level};
+
+    # I only indent sections that are all at the same indentation level. Otherwise the branching
+    # logic would be violated
+    if($curindent != $instructions[$_]->{indent_level})
+    {
+      return undef;
+    }
+  }
+
+  # All seems good so I go ahead and indent the section
+  foreach(@_) { $instructions[$_]->{indent_level}++; }
+
+  return 1;
 }
 
 sub indented
