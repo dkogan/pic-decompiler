@@ -6,6 +6,7 @@ use List::MoreUtils qw(indexes);
 use Data::Dumper;
 use Text::Tabs;
 use Storable qw(dclone);
+use Set::IntSpan;
 
 my (%regaddrs, %regmaps, %bitmaps);
 parseIncludeFile();
@@ -123,7 +124,7 @@ sub traceProgramFlow
       # efficient about this
     }
 
-    %functionContext = (state0 => $instructions[$addr]->{state}, memberInstructions => {});
+    %functionContext = (state0 => $instructions[$addr]->{state}, memberInstructions => new Set::IntSpan);
     $functions{$addr} = \%functionContext;;
 
     if( @$callstack > 25)
@@ -144,8 +145,8 @@ sub traceProgramFlow
       }
 
       # skip if I've already traced this instruction. Otherwise, mark it as traced and move on
-      next if( $functionContext{memberInstructions}{$addr} );
-      $functionContext{memberInstructions}{$addr} = 1;
+      next if( $functionContext{memberInstructions}->member($addr) );
+      $functionContext{memberInstructions}->insert($addr);
 
       # first, handle anything that needs to happen in the instruction itself
       push @{$instruction->{callstack}}, $callstack;
