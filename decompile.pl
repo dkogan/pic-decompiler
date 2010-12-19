@@ -559,7 +559,7 @@ sub printAnnotated
     {
       if($instruction->{addr} > $nextFunc->max)
       {
-        say '}}}}}}}}}}}}}}}} function';
+        say "}}}}}}}}}}}}}}}} function\n";
         $nextFunc = shift @$functionbounds if @$functionbounds;
       }
       if ($instruction->{addr} == $nextFunc->min)
