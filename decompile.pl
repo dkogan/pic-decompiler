@@ -272,7 +272,12 @@ sub traceProgramFlow
   {
     my ($state0, $state1) = @_;
 
-    return undef if $state0->{PCLATH} != $state1->{PCLATH};
+    if( $state0->{PCLATH} != $state1->{PCLATH} )
+    {
+      my $xor = $state0->{PCLATH} ^ $state1->{PCLATH};
+      say STDERR sprintf 'WARNING: PCLATH off bits: 0x%x', $xor;
+      return undef;
+    }
 
     # should check for w conflicts here, but there will be many
     return 1;
