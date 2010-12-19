@@ -169,7 +169,7 @@ sub traceProgramFlow
         $addrto = $addr + 1;
 
         # handle the skipped instruction case later
-        addExecutionPath($addr, $addr + 2, $newstate, $functionContext{memberInstructions}, \@totrace);
+        addExecutionPath($addr, $addr + 2, $newstate, \@totrace);
       }
       elsif ($instruction->{mnemonic} eq 'call')
       {
@@ -177,7 +177,7 @@ sub traceProgramFlow
 
         # I add the call execution link, but do NOT add it to @totrace, since
         # I'll recursively trace it
-        addExecutionPath($addr, $addrto, $newstate, $functionContext{memberInstructions});
+        addExecutionPath($addr, $addrto, $newstate);
         traceFunctionCall($addrto, $isisr, [@$callstack, $addr + 1]);
 
         # continue tracing from the call return. Note that the state has changed
@@ -196,7 +196,7 @@ sub traceProgramFlow
         }
 
         $addrto = $callstack->[$#$callstack];
-        addExecutionPath($addr, $addrto, $newstate, $functionContext{memberInstructions});
+        addExecutionPath($addr, $addrto, $newstate);
         next;
       }
       elsif ($instruction->{mnemonic} =~ /retfie/)
@@ -219,7 +219,7 @@ sub traceProgramFlow
         $addrto = $addr + 1;
       }
 
-      addExecutionPath($addr, $addrto, $newstate, $functionContext{memberInstructions}, \@totrace);
+      addExecutionPath($addr, $addrto, $newstate, \@totrace);
     }
   }
 
@@ -284,7 +284,7 @@ sub traceProgramFlow
 
   sub addExecutionPath
   {
-    my ($addrfrom, $addrto, $newstate, $traced, $totrace) = @_;
+    my ($addrfrom, $addrto, $newstate, $totrace) = @_;
     $instructions[$addrfrom]->{to  }{$addrto  } = 1;
     $instructions[$addrto  ]->{from}{$addrfrom} = 1;
 
@@ -297,7 +297,6 @@ sub traceProgramFlow
 
     $instructions[$addrto  ]->{state} = $newstate;
 
-    $traced->{$addrfrom} = 1;
     push( @$totrace, $addrto ) if defined $totrace;
   }
 }
