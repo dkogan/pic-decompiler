@@ -80,8 +80,8 @@ if(0)
 }
 
 markUninteresting();
-printAnnotated();
-
+my $functionbounds = markFunctionBounds();
+printAnnotated($functionbounds);
 
 
 
@@ -439,11 +439,75 @@ sub markUninteresting
   }
 }
 
+sub markFunctionBounds
+{
+  my @functionbounds;
+
+ FUNCTIONLOOP:
+  foreach my $funcaddr (sort {$a <=> $b} keys %functions)
+  {
+    my $context = $functions{$funcaddr};
+
+    if($context->{memberInstructions}->min != $funcaddr)
+    {
+      say STDERR sprintf('WARNING: Function at 0x%x has addrmin at 0x%x. Should be the same',
+                         $funcaddr, $context->{memberInstructions}->min);
+      next;
+    }
+
+    if($context->{memberInstructions}->holes)
+    {
+      say STDERR sprintf('WARNING: Function at 0x%x has holes', $funcaddr);
+      next;
+    }
+
+    foreach my $addr ($context->{memberInstructions}->elements)
+    {
+      next if $addr == $funcaddr;
+
+      foreach my $addrfrom (keys %{$instructions[$addr]{from}})
+      {
+        if( ! $context->{memberInstructions}->member($addrfrom) &&
+            !$instructions[$addrfrom]->{returns})
+        {
+          say STDERR
+            sprintf('WARNING: Function at 0x%x has instruction at 0x%x coming from 0x%x. NOT in function',
+                    $funcaddr, $addr, $addrfrom);
+          next FUNCTIONLOOP;
+        }
+      }
+    }
+
+    push @functionbounds, [$context->{memberInstructions}->min, $context->{memberInstructions}->max];
+  }
+
+  return \@functionbounds;
+}
+
 sub printAnnotated
 {
+  my ($functionbounds) = @_;
+
+  my ($nextFuncStart, $nextFuncEnd);
+  ($nextFuncStart, $nextFuncEnd) = @{shift @$functionbounds} if @$functionbounds;
+
   foreach my $instruction (@instructions)
   {
     next if !defined  $instruction->{line};
+
+    if(defined $nextFuncEnd && $instruction->{addr} > $nextFuncEnd)
+    {
+      say '}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}';
+      $nextFuncEnd = undef;
+
+      ($nextFuncStart, $nextFuncEnd) = @{shift @$functionbounds} if @$functionbounds;
+    }
+    if(defined $nextFuncStart && $instruction->{addr} >= $nextFuncStart)
+    {
+      say '{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{';
+      $nextFuncStart = undef;
+    }
+
     printf "%-40s; ", $instruction->{line};
 
     if(!$instruction->{uninteresting})
