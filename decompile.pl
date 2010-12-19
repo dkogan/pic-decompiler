@@ -63,7 +63,7 @@ foreach my $line (@lines)
 
   if(defined $arg1 && $arg1 == $regaddrs{PCL} && $instructions[$addr]{writes_f})
   {
-    say sprintf "WARNING: Manipulating PCL in 0x%x. Not supported yet", $addr;
+    say sprintf 'WARNING: Manipulating PCL in 0x%x. Not supported yet', $addr;
   }
 }
 
@@ -74,8 +74,8 @@ my @instructions_unreachable = grep { defined $_ && !%{$_->{from}}         } @in
 
 if(0)
 {
-  foreach(@instructions_undefined  ) { say sprintf "Undefined   instruction at 0x%x", $_; }
-  foreach(@instructions_unreachable) { say sprintf "Unreachable instruction at 0x%x", $_->{addr}; }
+  foreach(@instructions_undefined  ) { say sprintf 'Undefined   instruction at 0x%x', $_; }
+  foreach(@instructions_unreachable) { say sprintf 'Unreachable instruction at 0x%x', $_->{addr}; }
 }
 
 markUninteresting();
@@ -118,7 +118,7 @@ sub traceProgramFlow
       if( !findStateConflicts( $functions{$addr}{state0}, $state0 ) )
       {
         say STDERR
-          sprintf "WARNING: inconsistent state at start of different calls to a function at 0x%x", $addr;
+          sprintf 'WARNING: inconsistent state at start of different calls to a function at 0x%x', $addr;
       }
 
       # WARNING: this return speeds up the analysis at the expense of not listing out all the
@@ -133,7 +133,7 @@ sub traceProgramFlow
 
     if( @$callstack > 25)
     {
-      say sprintf "WARNING: call stack too deep at 0x%x", $addr;
+      say sprintf 'WARNING: call stack too deep at 0x%x', $addr;
       return;
     }
 
@@ -144,7 +144,7 @@ sub traceProgramFlow
       my $instruction = $instructions[$addr];
       if(!defined $instruction || !defined $instruction->{addr})
       {
-        say STDERR sprintf "WARNING: ended up at 0x%x, which isn't defined. Where am I?", $addr;
+        say STDERR sprintf 'WARNING: ended up at 0x%x, which isn\'t defined. Where am I?', $addr;
         next;
       }
 
@@ -192,7 +192,7 @@ sub traceProgramFlow
       {
         if(!@$callstack)
         {
-          say STDERR sprintf("WARNING: 0x%x: returning, but call stack empty!", $addr);
+          say STDERR sprintf('WARNING: 0x%x: returning, but call stack empty!', $addr);
           next;
         }
 
@@ -204,12 +204,12 @@ sub traceProgramFlow
       {
         if(!$isisr)
         {
-          say STDERR sprintf("WARNING: 0x%x: retfie, but not in an isr!", $addr);
+          say STDERR sprintf('WARNING: 0x%x: retfie, but not in an isr!', $addr);
         }
 
         if(@$callstack)
         {
-          say STDERR sprintf("WARNING: 0x%x: retfie, but nonempty call stack!", $addr);
+          say STDERR sprintf('WARNING: 0x%x: retfie, but nonempty call stack!', $addr);
         }
 
         next;
@@ -244,7 +244,7 @@ sub traceProgramFlow
       else
       {
         # there will be way to many of these
-        #        say STDERR sprintf "WARNING: manipulating W with $instruction->{mnemonic} in 0x%x not yet supported", $addr;
+        #        say STDERR sprintf 'WARNING: manipulating W with $instruction->{mnemonic} in 0x%x not yet supported', $addr;
       }
     }
 
@@ -268,7 +268,7 @@ sub traceProgramFlow
       { $newstate->{$reg} = $newstate->{w}; }
       else
       {
-        say STDERR sprintf "WARNING: manipulating $reg with $instruction->{mnemonic} in 0x%x not yet supported", $addr;
+        say STDERR sprintf 'WARNING: manipulating $reg with $instruction->{mnemonic} in 0x%x not yet supported', $addr;
       }
     }
   }
@@ -293,7 +293,7 @@ sub traceProgramFlow
     if(defined $instructions[$addrto  ]->{state} &&
        !findStateConflicts($instructions[$addrto  ]->{state}, $newstate))
     {
-      say STDERR sprintf "WARNING: state conflict in 0x%x", $addrto;
+      say STDERR sprintf 'WARNING: state conflict in 0x%x', $addrto;
     }
 
     $instructions[$addrto  ]->{state} = $newstate;
@@ -412,7 +412,7 @@ sub expandArguments
 
   foreach($$arg1_expanded_print, $$arg2_expanded_print)
   {
-    $_ = sprintf("0x%x", $_) if defined $_ && /^[0-9]*$/;
+    $_ = sprintf('0x%x', $_) if defined $_ && /^[0-9]*$/;
   }
 }
 
