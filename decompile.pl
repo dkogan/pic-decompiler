@@ -541,7 +541,20 @@ sub expandConditionals
           }
           else
           {
-            next;
+            # the skipped goto goes backward
+
+            # If I can successfully indent the section, I do that and proceed. Otherwise
+            # treat this branch as a single-instruction if
+            if( addIndent( $instructions[$addr + 1]->{arg1_expanded_num} ..($addr - 1) ))
+            {
+              my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'set' : 'clear';
+
+              $instructions[$addr]->{annotated} =
+                "while ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
+              $instructions[$addr + 1]->{uninteresting} = 1;
+
+              next;
+            }
           }
         }
       }
