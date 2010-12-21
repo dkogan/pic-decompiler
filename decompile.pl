@@ -563,7 +563,7 @@ sub handleSkipOverGoto
 
     # If I can successfully indent the section, I do that and proceed. Otherwise
     # treat this branch as a single-instruction if
-    if ( addIndent( $addr_goto + 1, $goto_target - 1) )
+    if ( addIndent( $addr_branch + 1, $goto_target - 1) )
     {
       $instructions[$addr_branch]->{annotated} =
         "if ($actions[$action ^ 1] $instructions[$addr_branch]->{arg1_expanded_print}.$instructions[$addr_branch]->{arg2_expanded_print})";
