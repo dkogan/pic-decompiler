@@ -521,8 +521,24 @@ sub expandConditionals
 
         if($addr+3 <= $bound->max && $instructions[$addr + 2]->{mnemonic} eq 'goto' &&
            $instructions[$addr + 1]->{arg1_expanded_num} == $addr + 3)
-            {
-          }
+        {
+          # A common idiom I'm seeing is
+          # 00000 btfss blah, blah
+          # 00001 goto  0x3
+          # 00002 goto  blah
+          # 00003 blah
+          #
+          # This is inefficient since the 1st goto is redundant. I can rewrite as
+          #
+          # 00000 btfsc blah, blah
+          # 00001 goto  blah
+          # 00002 blah
+          #
+          # I see this idiom a lot, so I support it here explicitly
+          handleSkipOverGoto($addr, $addr+2, 'inverted') and
+            $instructions[$addr + 1]->{uninteresting} = 1 and
+            next;
+        }
 
         # skipping a goto. Expand it and move on if successful. If not successful, fall through and
         # expand less fully
