@@ -514,7 +514,7 @@ sub expandConditionals
       {
         # skipping over a goto
 
-        if($addr+2 <= $bound->max && $instructions[$addr + 2]->{mnemonic} eq 'goto' &&
+        if($addr+3 <= $bound->max && $instructions[$addr + 2]->{mnemonic} eq 'goto' &&
            $instructions[$addr + 1]->{arg1_expanded_num} == $addr + 3)
             {
           }
