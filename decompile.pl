@@ -593,6 +593,9 @@ sub handleSkipOverGoto
 
 sub addIndent
 {
+  # This function tries to add an indentation block for the given instruction bounds. If it's
+  # possible it returns true, and marks the indentation. If not, it does NOT mark it and returns
+  # false
   my $start = $_[0];
   my $end   = $_[$#_] // $start;
 
