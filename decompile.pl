@@ -51,7 +51,12 @@ foreach my $line (@lines)
                           to        => {},
 
                           # different possibilities for the call stack when we get here
-                          callstack => []};
+                          callstack => [],
+
+                          #indents
+                          indent_start => 0,
+                          indent_end   => 0
+                         };
 
   $instructions[$addr]{writes_w} =
     ( defined $arg2 && $arg2 eq 'w') || $mnemonic =~ /w$/;
@@ -558,7 +563,7 @@ sub handleSkipOverGoto
 
     # If I can successfully indent the section, I do that and proceed. Otherwise
     # treat this branch as a single-instruction if
-    if ( addIndent(($addr_goto + 1)..($goto_target - 1)) )
+    if ( addIndent( $addr_goto + 1, $goto_target - 1) )
     {
       $instructions[$addr_branch]->{annotated} =
         "if ($actions[$action ^ 1] $instructions[$addr_branch]->{arg1_expanded_print}.$instructions[$addr_branch]->{arg2_expanded_print})";
@@ -573,7 +578,7 @@ sub handleSkipOverGoto
 
     # If I can successfully indent the section, I do that and proceed. Otherwise
     # treat this branch as a single-instruction if
-    if ( addIndent( $goto_target ..($addr_branch - 1) ))
+    if ( addIndent( $goto_target, $addr_branch - 1 ))
     {
       $instructions[$addr_branch]->{annotated} =
         "while ($actions[$action] $instructions[$addr_branch]->{arg1_expanded_print}.$instructions[$addr_branch]->{arg2_expanded_print})";
@@ -588,22 +593,28 @@ sub handleSkipOverGoto
 
 sub addIndent
 {
-  my $curindent;
-  foreach(@_)
-  {
-    $instructions[$_]->{indent_level} //= 0;
-    $curindent //= $instructions[$_]->{indent_level};
+  my $start = $_[0];
+  my $end   = $_[$#_] // $start;
 
-    # I only indent sections that are all at the same indentation level. Otherwise the branching
-    # logic would be violated
-    if($curindent != $instructions[$_]->{indent_level})
-    {
-      return undef;
-    }
+  if($start > $end)
+  {
+    $instructions[$start]->{indent_startend} = 1;
+    return 1;
   }
 
+  my $count = 0;
+  foreach my $addr ($start..$end)
+  {
+    $count += $instructions[$addr]->{indent_start};
+    $count -= $instructions[$addr]->{indent_end};
+  }
+
+  if($count != 0)
+  { return undef; }
+
   # All seems good so I go ahead and indent the section
-  foreach(@_) { $instructions[$_]->{indent_level}++; }
+  $instructions[$start]->{indent_start}++;
+  $instructions[$end  ]->{indent_end}  ++;
 
   return 1;
 }
@@ -637,15 +648,11 @@ sub printAnnotated
       }
     }
 
-    # handle the bookeeping of the indentation
-    my $curindent = $instruction->{indent_level} // 0;
-    while($curindent != $indent)
-    {
-      my $delta = $curindent - $indent;
-      if($delta > 0) { say indented('{', $indent++); }
-      else           { say indented('}', --$indent); }
-    }
-
+    # handle the bookeeping of the indentation starts
+    if($instruction->{indent_startend})
+    { say indented('{}', $indent); }
+    foreach(1..$instruction->{indent_start})
+    { say indented('{', $indent++); }
 
     my $annotated = $instruction->{annotated} // '';
     if(!$annotated && !$instruction->{uninteresting})
@@ -665,5 +672,8 @@ sub printAnnotated
 
     printf "%-40s; %s\n", $annotated, $instruction->{line};
 
+    # handle the bookeeping of the indentation ends
+    foreach(1..$instruction->{indent_end})
+    { say indented('}', --$indent); }
   }
 }
