@@ -608,8 +608,8 @@ sub addIndent
   my $count = 0;
   foreach my $addr ($start..$end)
   {
-    $count += $instructions[$addr]->{indent_start};
-    $count -= $instructions[$addr]->{indent_end};
+    $count += $instructions[$addr]->{indent_start} unless $addr == $start;
+    $count -= $instructions[$addr]->{indent_end}   unless $addr == $end;
   }
 
   if($count != 0)
