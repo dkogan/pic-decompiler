@@ -513,50 +513,15 @@ sub expandConditionals
       if($instructions[$addr + 1]->{mnemonic} eq 'goto')
       {
         # skipping over a goto
-        if($addr+2 <= $bound->max && $instructions[$addr + 2]->{mnemonic} eq 'goto')
-        {
-          # btfs. goto goto
-          next;
-        }
-        else
-        {
-          # skipping over a single goto
-          # are we going forwards or backwards?
-          if($instructions[$addr + 1]->{arg1_expanded_num} > $addr+1)
-          {
-            # the skipped goto goes forward
 
-            # If I can successfully indent the section, I do that and proceed. Otherwise
-            # treat this branch as a single-instruction if
-            if( addIndent(($addr + 2)..($instructions[$addr + 1]->{arg1_expanded_num} - 1)) )
+        if($addr+2 <= $bound->max && $instructions[$addr + 2]->{mnemonic} eq 'goto' &&
+           $instructions[$addr + 1]->{arg1_expanded_num} == $addr + 3)
             {
-              my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'clear' : 'set';
-
-              $instructions[$addr]->{annotated} =
-                "if ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
-              $instructions[$addr + 1]->{uninteresting} = 1;
-
-              next;
-            }
           }
-          else
-          {
-            # the skipped goto goes backward
 
-            # If I can successfully indent the section, I do that and proceed. Otherwise
-            # treat this branch as a single-instruction if
-            if( addIndent( $instructions[$addr + 1]->{arg1_expanded_num} ..($addr - 1) ))
-            {
-              my $action = $instructions[$addr]->{mnemonic} eq 'btfsc' ? 'set' : 'clear';
-
-              $instructions[$addr]->{annotated} =
-                "while ($action $instructions[$addr]->{arg1_expanded_print}.$instructions[$addr]->{arg2_expanded_print})";
-              $instructions[$addr + 1]->{uninteresting} = 1;
-
-              next;
-            }
-          }
-        }
+        # skipping a goto. Expand it and move on if successful. If not successful, fall through and
+        # expand less fully
+        handleSkipOverGoto($addr, $addr+1) and next;
       }
 
       # skipping over something that's not a goto. This is a 1-instruction-block if
@@ -573,6 +538,52 @@ sub expandConditionals
       $addr++;
     }
   }
+}
+
+sub handleSkipOverGoto
+{
+  my ($addr_branch, $addr_goto, $reversed_action) = @_;
+  my $goto_target = $instructions[$addr_goto]->{arg1_expanded_num};
+
+  my @actions = qw(clear set);
+
+  my $action = ($instructions[$addr_branch]->{mnemonic} eq 'btfsc') ? 1 : 0;
+  if($reversed_action) { $action ^= 1; };
+
+  # skipping over a single goto
+  # are we going forwards or backwards?
+  if ($goto_target > $addr_goto)
+  {
+    # the skipped goto goes forward
+
+    # If I can successfully indent the section, I do that and proceed. Otherwise
+    # treat this branch as a single-instruction if
+    if ( addIndent(($addr_goto + 1)..($goto_target - 1)) )
+    {
+      $instructions[$addr_branch]->{annotated} =
+        "if ($actions[$action ^ 1] $instructions[$addr_branch]->{arg1_expanded_print}.$instructions[$addr_branch]->{arg2_expanded_print})";
+      $instructions[$addr_goto]->{uninteresting} = 1;
+
+      return 1;
+    }
+  }
+  else
+  {
+    # the skipped goto goes backward
+
+    # If I can successfully indent the section, I do that and proceed. Otherwise
+    # treat this branch as a single-instruction if
+    if ( addIndent( $goto_target ..($addr_branch - 1) ))
+    {
+      $instructions[$addr_branch]->{annotated} =
+        "while ($actions[$action] $instructions[$addr_branch]->{arg1_expanded_print}.$instructions[$addr_branch]->{arg2_expanded_print})";
+      $instructions[$addr_goto]->{uninteresting} = 1;
+
+      return 1;
+    }
+  }
+
+  return undef;
 }
 
 sub addIndent
