@@ -631,6 +631,7 @@ sub printAnnotated
 {
   my ($functionbounds) = @_;
   my $nextFunc = shift @$functionbounds if @$functionbounds;
+  if($nextFunc) { addIndent($nextFunc->min, $nextFunc->max); }
 
   my $indent = 0;
 
@@ -642,12 +643,13 @@ sub printAnnotated
     {
       if($instruction->{addr} > $nextFunc->max)
       {
-        say "}}}}}}}}}}}}}}}} function\n";
+        say "\n\n";
         $nextFunc = shift @$functionbounds if @$functionbounds;
+        if($nextFunc) { addIndent($nextFunc->min, $nextFunc->max); }
       }
       if ($instruction->{addr} == $nextFunc->min)
       {
-        say 'function {{{{{{{{{{{{{{{{';
+        say 'function';
       }
     }
 
