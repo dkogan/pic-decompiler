@@ -431,6 +431,14 @@ sub markUninteresting
   {
     next unless defined($instruction->{addr});
     next unless $instruction->{writes_f};
+
+    # unreachable instructions are uninteresting
+    if(! %{$instruction->{from}})
+    {
+      $instruction->{uninteresting} = 1;
+      next
+    }
+
     if($instruction->{arg1_expanded_print} =~ /PCLATH/)
     {
       $instruction->{uninteresting} = 1;
