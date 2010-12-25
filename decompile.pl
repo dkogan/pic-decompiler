@@ -663,18 +663,18 @@ sub printAnnotated
   {
     next if !defined  $instruction->{line};
 
-    if(defined $nextFunc)
+    if(defined $nextFunc &&$instruction->{addr} > $nextFunc->max)
     {
-      if($instruction->{addr} > $nextFunc->max)
-      {
-        say "\n\n";
-        $nextFunc = shift @$functionbounds if @$functionbounds;
-        if($nextFunc) { addIndent($nextFunc->min, $nextFunc->max); }
-      }
-      if ($instruction->{addr} == $nextFunc->min)
-      {
-        say 'function';
-      }
+      say "\n\n";
+
+      $nextFunc = undef;
+      $nextFunc = shift @$functionbounds if @$functionbounds;
+      if($nextFunc) { addIndent($nextFunc->min, $nextFunc->max); }
+    }
+
+    if(defined $nextFunc &&$instruction->{addr} == $nextFunc->min)
+    {
+      say 'function';
     }
 
     # handle the bookeeping of the indentation starts
