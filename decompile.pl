@@ -636,14 +636,18 @@ sub addIndent
     return 1;
   }
 
-  my $count = 0;
+  # I now count indentation starts and ends to make sure that I don't break proper nesting. There's
+  # some slop here, since I can place my start brace anywhere in a block of start-braces and my
+  # end-brance anywhere in a block of end-braces
+  my $count             = 0;
+  my @count_buffer = (-$instructions[$start]->{indent_start}, $instructions[$end]->{indent_end});
   foreach my $addr ($start..$end)
   {
     $count += $instructions[$addr]->{indent_start} unless $addr == $start;
     $count -= $instructions[$addr]->{indent_end}   unless $addr == $end;
   }
 
-  if($count != 0)
+  if($count < $count_buffer[0] || $count > $count_buffer[1])
   { return undef; }
 
   # All seems good so I go ahead and indent the section
