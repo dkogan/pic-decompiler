@@ -18,6 +18,7 @@ my @instructions;
 my %functions;
 
 # I parse all my lines into a list of instructions
+my $last_real_instruction = 0;
 foreach my $line (@lines)
 {
   chomp $line;
@@ -71,7 +72,12 @@ foreach my $line (@lines)
   {
     say sprintf 'WARNING: Manipulating PCL in 0x%x. Not supported yet', $addr;
   }
+
+  $last_real_instruction = $addr unless $opcode eq '3fff';
 }
+
+# remove all trailing instructions with all 1-bits. These are simply unset
+@instructions = @instructions[0..$last_real_instruction];
 
 traceProgramFlow();
 
