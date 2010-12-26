@@ -430,7 +430,6 @@ sub markUninteresting
   foreach my $instruction (@instructions)
   {
     next unless defined($instruction->{addr});
-    next unless $instruction->{writes_f};
 
     # unreachable instructions are uninteresting
     if(! %{$instruction->{from}})
@@ -439,13 +438,15 @@ sub markUninteresting
       next
     }
 
-    if($instruction->{arg1_expanded_print} =~ /PCLATH/)
+    if($instruction->{writes_f} &&
+       $instruction->{arg1_expanded_print} =~ /PCLATH/)
     {
       $instruction->{uninteresting} = 1;
       next
     }
 
-    if($instruction->{arg1_expanded_print} =~ /STATUS/ &&
+    if($instruction->{writes_f} &&
+       $instruction->{arg1_expanded_print} =~ /STATUS/ &&
        $instruction->{mnemonic} =~ /^b[cs]f$/ &&
        $instruction->{arg2_expanded_print} =~ /^RP[01]$/)
     {
