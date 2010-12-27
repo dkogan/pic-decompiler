@@ -689,10 +689,10 @@ sub printAnnotated
     }
 
     # handle the bookeeping of the indentation starts
-    if($instruction->{indent_startend})
-    { say indented('{}', $indent); }
     foreach(1..$instruction->{indent_start})
     { say indented('{', $indent++); }
+    if($instruction->{indent_startend})
+    { say indented('{}', $indent); }
 
     my $annotated = $instruction->{annotated} // '';
     if(!$annotated && !$instruction->{uninteresting})
